@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    .node {
+        stroke-linejoin: round;
+        stroke-width: 3;
+    }
+
+    .circle {
+        fill: #555;
+    }
+
+    .circleinvisible {
+        fill: #fff;
+    }
+
+    .label {
+        font: 12px sans-serif;
+    }
+
+    .link {
+        fill: none;
+        stroke: #555;
+        stroke-opacity: 0.4;
+        stroke-width: 1.5;
+    }
+
+    .linkinvisible {
+        fill: none;
+        stroke: #fff;
+        stroke-opacity: 0.4;
+        stroke-width: 1.5;
+    }
+</style>
+<p>Render A Binary Tree</p>
+<!-- Input Box-->
+<form class="input boxes">
+    <input id="targetBox" type="text" placeholder="Tree nodes.." size="100">
+</form>
+
+<body>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script>
+        // Margins
+        var margin = {
+                top: 20,
+                right: 0,
+                bottom: 0,
+                left: 0
+            },
+            width = 1000 - margin.left - margin.right,
+            height = 1000 - margin.top - margin.bottom;
+        // SVG space
+        var svg = d3.select("body").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var nodes;
+        var links;
+        var node;
+        var nodeEnter;
+        // "Render" button
+        var searchButton = svg.append("g")
+            .append("svg:image")
+            .attr("xlink:href", "render.svg")
+            .attr("width", 30)
+            .attr("height", 30)
+            .attr("x", 8)
+            .attr("y", 0)
+            .attr("id", "renderButton");
+
+        /* ---------------------- */
+        /* Binary Tree Functions */
+        /* -------------------- */
+        function Node(val) {
+            this.value = val;
+            this.left = null;
+            this.right = null;
+        }
+        var root = null;
+
+        // Creates binary tree from string of nodes
+        function deserialize(target) {
+            var nodes = target.split(",");
+            root = new Node(nodes[0]);
+            var prev = [];
+            prev.push(root);
+            var current = [];
+            var i = 0;
+            var j;
+            while (i < nodes.length - 1) {
+                for (j = 0; j < prev.length; j++) {
+                    i += 1;
+                    if (nodes[i] != "null") {
+                        var n = new Node(nodes[i]);
+                        prev[j].left = n;
+                        current.push(n);
+                    } else {
+                        prev[j].left = new Node();
+                    }
+                    i += 1;
+                    if (nodes[i] != "null") {
+                        var n = new Node(nodes[i]);
+                        prev[j].right = n;
+                        current.push(n);
+                    } else {
+                        prev[j].right = new Node();
+                    }
+                }
+                prev = current;
+                current = [];
+            }
+        }
+
+        // Create tree visualization
+        var treemap = d3.tree().size([width, height]);
+        var d3Hierarchy;
+        var d3Tree;
+        const tree = d3.tree()
+            .separation((a, b) => ((a.parent === b.parent) ? 1 : 0.5))
+            .size([width, height])
+
+
+        function renderTree() {
+            // Turn binary tree into d3 hierarchy object
+            d3Tree = d3.hierarchy(root, function (d) {
+
+                d.children = [];
+                if (d.left) {
+                    d.children.push(d.left);
+
+                }
+                if (d.right) {
+
+                    d.children.push(d.right);
+                }
+                return d.children;
+            });
+
+            // Assign x and y coordinates to hierarchy
+            tree(d3Tree);
+            nodes = d3Tree.descendants();
+            links = d3Tree.links();
+            debugger;
+            // Normalize for fixed-depth
+            nodes.forEach(function (d) {
+                d.y = d.depth * 100
+            });
+
+            link = svg.append("g")
+                .selectAll("path")
+                .data(links)
+                .enter().append('path')
+                .attr("d", d3.linkHorizontal()
+                    .x(d => d.x)
+                    .y(d => (d.y + 20)))
+                .attr("class", function (d, i) {
+                    if (d.target.data.value != undefined) {
+                        return "link";
+                    } else {
+                        return "linkinvisible";
+                    }
+                });
+            node = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+                .attr("class", "g")
+                .selectAll("g")
+                .data(nodes)
+                .enter().append("g")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            node.append("circle")
+                .attr("class", function (d) {
+                    debugger;
+                    if (d.data.value != undefined)
+                        return "circle";
+                    else
+                        return "circleinvisible";
+                })
+                .attr("r", 15);
+
+            node.append("text")
+                .attr("dy", ".4em")
+                .attr("dx", "-0.2em")
+                .attr("class", "label")
+                .text(function (d) {
+                    return d.data.value;
+                });
+        }
+        // Render tree on click 
+        d3.select("#renderButton").on("click", function () {
+            // Get binary tree string to deserailize
+            var target = document.getElementById("targetBox").value;
+            // Create a tree
+            deserialize(target);
+            // Render the tree
+            renderTree();
+
+        });
+    </script>
+</body>

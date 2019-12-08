@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    .line {
+        stroke: #000;
+        stroke-width: 3px;
+        stroke-linecap: round;
+    }
+
+    .line--active {
+        stroke: #fc8403;
+        stroke-width: 3px;
+        stroke-linecap: round;
+    }
+
+    .line--middle {
+        stroke: #35c7f0;
+        stroke-width: 3px;
+        stroke-linecap: round;
+    }
+
+    svg {
+        top: 80px;
+        left: 0px;
+        position: absolute;
+    }
+
+
+    body {
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    /* Style the search field */
+    input[type=text] {
+        padding: 5px;
+        font-size: 11px;
+        border: 1px solid grey;
+        float: left;
+        width: 5%;
+        background: #f1f1f1;
+    }
+</style>
+<p>Binary Search</p>
+<!-- Load icon library -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<!-- Search Box-->
+<form class="input boxes">
+    <input id="targetBox" type="text" placeholder="Search.." name="search">
+</form>
+
+<body>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script>
+        var n = 400,
+            // Numbers to search within
+            array = d3.range(n);
+        // Margins
+        var margin = {
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0
+            },
+            width = 2000 - margin.left - margin.right,
+            height = 500 - margin.top - margin.bottom;
+        // Spread numbers out on x axis 
+        var x = d3.scaleBand()
+            .domain(d3.range(n))
+            .range([0, width]);
+        // Spread heights along y axis
+        var y = d3.scaleBand()
+            .domain(d3.range(n))
+            .range([0, height]);
+        // SVG space
+        var svg = d3.select("body").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+
+        // Input box
+        var searchButton = svg.append("g")
+            .append("svg:image")
+            .attr("xlink:href", "search.svg")
+            .attr("width", 30)
+            .attr("height", 30)
+            .attr("x", 8)
+            .attr("y", 0)
+            .attr("id", "searchButton");
+        // Display the shuffled array, as vertical lines, heights scale to array values
+        var line = svg.append("g")
+            .attr("class", "line")
+            .selectAll("line")
+            .data(array)
+            .enter().append("line")
+            .attr("transform", transform)
+            .attr("y2", tall);
+
+
+        function transform(d, i) {
+            return "translate(" + x(i) + "," + height + ")";
+        }
+
+        function tall(d, i) {
+            return (-1 * y(i));
+        }
+
+        // Binary search
+        function search(array, target) {
+            var actions = [];
+            var lower = 0;
+            var upper = array.length - 1;
+            actions.push({
+                type: "activePart",
+                "left": lower,
+                "right": upper
+            });
+            while (lower <= upper) {
+                middle = Math.floor((lower + upper) / 2);
+                actions.push({
+                    type: "findMiddle",
+                    "index": middle,
+                    "left": lower,
+                    "right": upper
+                });
+                if (array[middle] == target) {
+                    break;
+                }
+                if (target > array[middle]) {
+                    lower = middle + 1;
+                    actions.push({
+                        type: "activePart",
+                        "left": lower,
+                        "right": upper
+                    });
+                } else {
+                    upper = middle - 1;
+                    actions.push({
+                        type: "activePart",
+                        "left": lower,
+                        "right": upper
+                    });
+                }
+            }
+            if (lower > upper) {
+                actions.push({
+                    type: "errorNotFound"
+                });
+            }
+            return actions;
+        }
+        // Search and visualize each search action on click 
+        d3.select("#searchButton").on("click", function () {
+
+
+            // Get number to search for
+            var target = parseInt(document.getElementById("targetBox").value);
+            // Actions performed during binary search
+            var actions = search(array.slice(), target).reverse();
+            var transition = d3.transition()
+                .duration(1500)
+                .on("start", function start() {
+                    var action = actions.pop();
+                    switch (action.type) {
+                        case "activePart": {
+                            line.transition().attr("class", function (d, i) {
+                                if (i >= action.left && i <= action.right)
+                                    return "line--active";
+                                return "line";
+                            });
+                            break;
+                        }
+                        case "findMiddle": {
+                            line.transition().attr("class", function (d, i) {
+                                if (i == action.index)
+                                    return "line--middle";
+                                else if (i >= action.left && i <= action.right)
+                                    return "line--active";
+                                else
+                                    return "line";
+                            });
+                            break;
+                        }
+                        case "errorNotFound": {
+                            line.transition().attr("class", "line");
+                            break;
+                        }
+                    }
+                    if (actions.length)
+                        transition = transition.transition().on("start", start);
+                });
+
+
+
+
+        });
+    </script>
+</body>

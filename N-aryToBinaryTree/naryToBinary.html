@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    .circle {
+        fill: rgba(176, 174, 184, 0.521);
+        stroke: none;
+        stroke-width: 0px;
+    }
+
+    .circleinvisible {
+        fill: #ffffff;
+        stroke: none;
+        stroke-width: 0px;
+    }
+
+    .active-circle {
+        fill: rgba(133, 96, 233, 0.801);
+        stroke: none;
+        stroke-width: 0px;
+    }
+
+    .active-visited-circle {
+        fill: rgba(133, 96, 233, 0.801);
+        stroke: rgba(67, 166, 223, 0.801);
+        stroke-width: 7px;
+    }
+
+    .inactive-circle {
+        fill: rgba(176, 174, 184, 0.521);
+        stroke: none;
+        stroke-width: 0px;
+    }
+
+    .inactive-visited-circle {
+        fill: rgba(176, 174, 184, 0.521);
+        stroke: rgba(67, 166, 223, 0.801);
+        stroke-width: 7px;
+    }
+
+    .label {
+        font: 12px sans-serif;
+    }
+
+    .link {
+        fill: none;
+        stroke: #555;
+        stroke-opacity: 0.4;
+        stroke-width: 1.5;
+    }
+
+    .linkinvisible {
+        fill: none;
+        stroke: #fff;
+        stroke-opacity: 0.4;
+        stroke-width: 1.5;
+    }
+
+    .active-binary-circle {
+        fill: rgba(245, 204, 91, 0.801);
+        stroke: none;
+        stroke-width: 0px;
+    }
+    .p1, .p2 { display:inline }
+    .p2 { margin-left: 350px; }
+</style>
+<p>N-ary to Binary Tree</p>
+<!-- Input Box-->
+<form class="input boxes">
+    <input id="targetBox" type="text" placeholder="Tree nodes.." size="100">
+</form>
+
+<body>
+    <script src='https://cdn.jsdelivr.net/g/lodash@4(lodash.min.js+lodash.fp.min.js)'></script>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script>
+        // Margins
+        var margin = {
+                top: 20,
+                right: 0,
+                bottom: 0,
+                left: 0
+            },
+            width = (2000 - margin.left - margin.right),
+            height = 2000 - margin.top - margin.bottom;
+        // SVG space for n-ary tree
+        var svg = d3.select("body").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height/4 + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+        var nodes;
+        var nodesB;
+        var links;
+        var linksB;
+        var node;
+        var nodeEnter;
+        // "Go" button
+        var searchButton = svg.append("g")
+            .append("svg:image")
+            .attr("xlink:href", "render.svg")
+            .attr("width", 30)
+            .attr("height", 30)
+            .attr("x", 8)
+            .attr("y", 0)
+            .attr("id", "goButton");
+
+        /* ---------------------- */
+        /* Tree Functions */
+        /* -------------------- */
+        function biNode(val) {
+            this.value = val;
+            this.left = null;
+            this.right = null;
+        }
+        var biRoot = null;
+        var nRoot = null;
+
+        function nNode(val) {
+            this.value = val;
+            this.children = [];
+        }
+
+        // Creates n-ary tree from string of nodes
+        function deserialize(target) {
+            var nodeSets = target.split("#");
+            var nodes = nodeSets[0].split(",");
+            nRoot = new nNode(nodes[0]);
+            var q = [];
+            q.push(nRoot);
+            var i = 1;
+            while (i < nodeSets.length - 1) {
+                var cur = q.shift();
+                var nodes = nodeSets[i].split(",");
+                var j = 0;
+                while(j < nodes.length - 1){
+                    var n = new nNode(nodes[j]);
+                    q.push(n);
+                    cur.children.push(n);
+                    j += 1;
+                }
+                i += 1;
+            }
+        }
+
+        // Converts n-ary tree to binary tree, keeps track of actions
+        var actions = [];
+        var treeNum = -1;
+        var trees = [];
+        var maxCount = 0;
+        // var revActions = [];
+        function nToBi(root, count){
+            if(count > maxCount){
+                maxCount = count; 
+            }
+            console.log(root.value)
+            console.log(root.children.length)
+            if(root == null){
+                return null;
+            }
+            actions.push({
+                type: "activateSubtree",
+                keys: subtree[root.value],
+                count: count
+            });
+            var biRoot_ = new biNode(root.value);
+            var idNodes = "biNodes".concat(count);
+            var idLinks = "biLinks".concat(count);
+            var temp = _.cloneDeep(biRoot_);
+            actions.push({
+                    type: "renderBinary",
+                    key: temp,
+                    idNodes: idNodes,
+                    idLinks: idLinks,
+                    offsetx: count*400
+                });
+            if(root.children.length > 0){
+                biRoot_.right = new biNode(undefined);
+                biRoot_.left = nToBi(root.children[0], count+1);
+                actions.push({
+                    type: "activateSubtree",
+                    keys: subtree[root.value],
+                    count: count
+                 });
+
+                var temp = _.cloneDeep(biRoot_);
+                actions.push({
+                    type: "renderBinary",
+                    key: temp,
+                    idNodes: idNodes,
+                    idLinks: idLinks,
+                    offsetx: count*400
+                });
+
+                var i = 1;
+                var cur = biRoot_.left;
+                while(i < root.children.length){
+                    cur.right = nToBi(root.children[i], count+1);
+                    actions.push({
+                        type: "activateSubtree",
+                        keys: subtree[root.value],
+                        count: count
+                    });
+
+                    var temp = _.cloneDeep(biRoot_);
+                    actions.push({
+                        type: "renderBinary",
+                        key: temp,
+                        idNodes: idNodes,
+                        idLinks: idLinks,
+                        offsetx: count*400
+                    });
+
+                    if(cur.left == null){
+                        cur.left = new biNode(undefined);
+                    }
+                    cur = cur.right;
+                    i += 1;
+                }
+            }
+
+            return biRoot_;
+        }
+
+        // Create n-ary tree visualization
+        var treemap = d3.tree().size([width/6, height/4]);
+        var d3Hierarchy;
+        var d3Tree;
+        const tree = d3.tree()
+            .separation((a, b) => ((a.parent === b.parent) ? 1 : 0.5))
+            .size([width/6, height/4])
+
+
+        function renderNTree() {
+            // Turn binary tree into d3 hierarchy object
+            d3Tree = d3.hierarchy(nRoot, function (d) {
+                return d.children;
+            });
+
+            // Assign x and y coordinates to hierarchy
+            tree(d3Tree);
+            nodes = d3Tree.descendants();
+            links = d3Tree.links();
+            // Normalize for fixed-depth
+            nodes.forEach(function (d) {
+                d.y = d.depth * 50
+            });
+
+            link = svg.append("g")
+                .selectAll("path")
+                .data(links)
+                .enter().append('path')
+                .attr("d", d3.linkHorizontal()
+                    .x(d => (d.x))
+                    .y(d => (d.y + 20)))
+                .attr("class", function (d, i) {
+                    if (d.target.data.value != undefined) {
+                        return "link";
+                    } else {
+                        return "linkinvisible";
+                    }
+                });
+            node = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+                .attr("class", "g")
+                .selectAll("g")
+                .data(nodes)
+                .enter().append("g")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            node.append("circle")
+                .attr("class", function (d) {
+                    if (d.data.value != undefined)
+                        return "circle";
+                    else
+                        return "circleinvisible";
+                })
+                .attr("r", 10);
+
+            node.append("text")
+                .attr("dy", ".4em")
+                .attr("dx", "-0.2em")
+                .attr("class", "label")
+                .text(function (d) {
+                    return d.data.value;
+                });
+        }
+
+        // Create binary tree visualization
+        var treemapB = d3.tree().size([width/6, height/4]);
+        var d3HierarchyB;
+        var d3TreeB;
+        const treeB = d3.tree()
+            .separation((a, b) => ((a.parent === b.parent) ? 1 : 0.5))
+            .size([width/6, height/4])
+
+
+        function renderBiTree(biRoot_, offsetx, idlinks, idnodes) {
+            // Turn binary tree into d3 hierarchy object
+            d3TreeB = d3.hierarchy(biRoot_, function (d) {
+
+                d.children = [];
+                if (d.left) {
+                    d.children.push(d.left);
+
+                }
+                if (d.right) {
+
+                    d.children.push(d.right);
+                }
+                return d.children;
+            });
+
+            // Assign x and y coordinates to hierarchy
+            treeB(d3TreeB);
+            nodesB = d3TreeB.descendants();
+            linksB = d3TreeB.links();
+            // Normalize for fixed-depth
+            nodesB.forEach(function (d) {
+                d.y = d.depth * 50
+            });
+
+            linkB = svg.append("g")
+                .attr("id", idlinks)
+                .selectAll("path")
+                .data(linksB)
+                .enter().append('path')
+                .attr("d", d3.linkHorizontal()
+                    .x(d => (d.x+width/6+offsetx))
+                    .y(d => (d.y + 20)))
+                .attr("class", function (d, i) {
+                    if (d.target.data.value != undefined) {
+                        return "link";
+                    } else {
+                        return "linkinvisible";
+                    }
+                });
+            nodeB = svg.append("g")
+                .attr("id", idnodes)
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+                .attr("class", "g")
+                .selectAll("g")
+                .data(nodesB)
+                .enter().append("g")
+                .attr("transform", d => `translate(${d.x+width/6+offsetx},${d.y})`);
+
+            nodeB.append("circle")
+                .attr("class", function (d) {
+                    if (d.data.value != undefined){
+                        return "circle";
+                    }
+                    else
+                        return "circleinvisible";
+                })
+                .attr("r", 10);
+
+            nodeB.append("text")
+                .attr("dy", ".4em")
+                .attr("dx", "-0.2em")
+                .attr("class", "label")
+                .text(function (d) {
+                    return d.data.value;
+                });
+        }
+
+        // Dictionary that stores all children in a subtree
+        var subtree = {};
+        // Fills the subtree dictionary
+        function fillSubtree(root_) {
+            if (root_ == null || root_.value == undefined) {
+                var temp = [];
+                return temp;
+            }
+            var allChildren = [];
+            var i = 0;
+            while(i < root_.children.length){
+                var temp = fillSubtree(root_.children[i]);
+                allChildren = allChildren.concat(temp);
+                i += 1;
+            }
+            if (root_.value != undefined) {
+                allChildren.push(root_.value);
+            }
+            subtree[root_.value] = allChildren;
+            return allChildren;
+        }
+
+        // Animate the traversal using the array of actions 
+        var visitedList = [];
+        var targetId;
+        function animateTraversal() {
+            //debugger;
+            var transition = d3.transition()
+                .duration(3000)
+                .on("start", function start() {
+                    var action = actions.shift();
+                    switch (action.type) {
+                        case "activateSubtree": {
+                            node.selectAll("circle")
+                                .transition().attr("class", function (d) {
+                                    //debugger;
+                                    var active = action.keys.includes(d.data.value);
+                                    var visited = visitedList.includes(d.data.value);
+                                    if (d.data.value == undefined) {
+                                        return "circleinvisible";
+                                    } else if (active && visited) {
+                                        return "active-visited-circle";
+                                    } else if (active && !visited) {
+                                        return "active-circle";
+                                    } else if (!active && visited) {
+                                        return "inactive-visited-circle";
+                                    } else {
+                                        return "inactive-circle";
+                                    }
+                                });
+                            
+                            break;
+                        }
+                        case "renderBinary": {
+                            d3.selectAll("#".concat(action.idLinks)).remove();
+                            d3.selectAll("#".concat(action.idNodes)).remove();
+                            renderBiTree(action.key, action.offsetx, action.idLinks, action.idNodes);
+                            d3.selectAll("#".concat(action.idNodes)).selectAll("circle").filter(function() {
+                                    return !this.classList.contains('circleinvisible')
+                                })
+                                .transition().attr("class", function (d) {
+                                    //debugger;
+                                        return "active-binary-circle";
+                            });
+                            var i = 0;
+                            while(i <= maxCount){
+                                //debugger;
+                                targetId = "#".concat("biNodes", i);
+                                if(targetId != "#".concat(action.idNodes)){
+                                    d3.selectAll(targetId).selectAll("circle").filter(function() {
+                                        return !this.classList.contains('circleinvisible')
+                                    })
+                                    .transition().attr("class", function (d) {
+                                        //debugger;
+                                            return "inactive-circle";
+                                });
+                                }
+                                i += 1;
+                            }
+
+                            break;
+                        }
+                    }
+                    if (actions.length) {
+                        transition = transition.transition().on("start", start);
+                    }
+                });
+        }
+        // Render tree on click 
+        d3.select("#goButton").on("click", function () {
+            // Get binary tree string to deserailize
+            var target = document.getElementById("targetBox").value;
+            // Create a tree
+            deserialize(target);
+            // Render the n-ary tree
+            renderNTree();
+            // Get all children of each node
+            fillSubtree(nRoot);
+            // Convert the n-ary tree to a binary tree
+            biRoot = nToBi(nRoot, 0);
+            // Render converted binary tree
+            // renderBiTree(biRoot_, 0, "hello", "hellonodes");
+            // Animate the conversion
+            // revActions = actions.reverse();
+            animateTraversal();
+        });
+    </script>
+<p class = "p1">N-ary tree</p>
+<p class = "p2">Binary trees at different levels of the call stack</p>
+</body>

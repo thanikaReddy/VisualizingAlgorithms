@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    .circle {
+        fill: rgba(176, 174, 184, 0.521);
+        stroke: none;
+        stroke-width: 0px;
+    }
+
+    .circleinvisible {
+        fill: #ffffff;
+        stroke: none;
+        stroke-width: 0px;
+    }
+
+    .active-circle {
+        fill: rgba(133, 96, 233, 0.801);
+        stroke: none;
+        stroke-width: 0px;
+    }
+
+    .active-visited-circle {
+        fill: rgba(133, 96, 233, 0.801);
+        stroke: rgba(67, 166, 223, 0.801);
+        stroke-width: 7px;
+    }
+
+    .inactive-circle {
+        fill: rgba(176, 174, 184, 0.521);
+        stroke: none;
+        stroke-width: 0px;
+    }
+
+    .inactive-visited-circle {
+        fill: rgba(176, 174, 184, 0.521);
+        stroke: rgba(67, 166, 223, 0.801);
+        stroke-width: 7px;
+    }
+
+    .label {
+        font: 12px sans-serif;
+    }
+
+    .link {
+        fill: none;
+        stroke: #555;
+        stroke-opacity: 0.4;
+        stroke-width: 1.5;
+    }
+
+    .linkinvisible {
+        fill: none;
+        stroke: #fff;
+        stroke-opacity: 0.4;
+        stroke-width: 1.5;
+    }
+</style>
+<p>Inorder Traversal of a Binary Tree</p>
+<!-- Input Box-->
+<form class="input boxes">
+    <input id="targetBox" type="text" placeholder="Tree nodes.." size="100">
+</form>
+
+<body>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script>
+        // Margins
+        var margin = {
+                top: 20,
+                right: 0,
+                bottom: 0,
+                left: 0
+            },
+            width = 1000 - margin.left - margin.right,
+            height = 1000 - margin.top - margin.bottom;
+        // SVG space
+        var svg = d3.select("body").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var nodes;
+        var links;
+        var node;
+        var nodeEnter;
+        // "Go" button
+        var searchButton = svg.append("g")
+            .append("svg:image")
+            .attr("xlink:href", "render.svg")
+            .attr("width", 30)
+            .attr("height", 30)
+            .attr("x", 8)
+            .attr("y", 0)
+            .attr("id", "goButton");
+
+        /* ---------------------- */
+        /* Binary Tree Functions */
+        /* -------------------- */
+        function Node(val) {
+            this.value = val;
+            this.left = null;
+            this.right = null;
+        }
+        var root = null;
+
+        // Creates binary tree from string of nodes
+        function deserialize(target) {
+            var nodes = target.split(",");
+            root = new Node(nodes[0]);
+            var prev = [];
+            prev.push(root);
+            var current = [];
+            var i = 0;
+            var j;
+            while (i < nodes.length - 1) {
+                for (j = 0; j < prev.length; j++) {
+                    i += 1;
+                    if (nodes[i] != "null") {
+                        var n = new Node(nodes[i]);
+                        prev[j].left = n;
+                        current.push(n);
+                    } else {
+                        prev[j].left = new Node();
+                    }
+                    i += 1;
+                    if (nodes[i] != "null") {
+                        var n = new Node(nodes[i]);
+                        prev[j].right = n;
+                        current.push(n);
+                    } else {
+                        prev[j].right = new Node();
+                    }
+                }
+                prev = current;
+                current = [];
+            }
+        }
+
+        // Create tree visualization
+        var treemap = d3.tree().size([width, height]);
+        var d3Hierarchy;
+        var d3Tree;
+        const tree = d3.tree()
+            .separation((a, b) => ((a.parent === b.parent) ? 1 : 0.5))
+            .size([width, height])
+
+
+        function renderTree() {
+            // Turn binary tree into d3 hierarchy object
+            d3Tree = d3.hierarchy(root, function (d) {
+
+                d.children = [];
+                if (d.left) {
+                    d.children.push(d.left);
+
+                }
+                if (d.right) {
+
+                    d.children.push(d.right);
+                }
+                return d.children;
+            });
+
+            // Assign x and y coordinates to hierarchy
+            tree(d3Tree);
+            nodes = d3Tree.descendants();
+            links = d3Tree.links();
+            // Normalize for fixed-depth
+            nodes.forEach(function (d) {
+                d.y = d.depth * 100
+            });
+
+            link = svg.append("g")
+                .selectAll("path")
+                .data(links)
+                .enter().append('path')
+                .attr("d", d3.linkHorizontal()
+                    .x(d => d.x)
+                    .y(d => (d.y + 20)))
+                .attr("class", function (d, i) {
+                    if (d.target.data.value != undefined) {
+                        return "link";
+                    } else {
+                        return "linkinvisible";
+                    }
+                });
+            node = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+                .attr("class", "g")
+                .selectAll("g")
+                .data(nodes)
+                .enter().append("g")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+
+            node.append("circle")
+                .attr("class", function (d) {
+                    if (d.data.value != undefined)
+                        return "circle";
+                    else
+                        return "circleinvisible";
+                })
+                .attr("r", 15);
+
+            node.append("text")
+                .attr("dy", ".4em")
+                .attr("dx", "-0.2em")
+                .attr("class", "label")
+                .text(function (d) {
+                    return d.data.value;
+                });
+        }
+
+        var actions = [];
+
+        // Dictionary that stores all children in a subtree
+        var subtree = {};
+        // Fills the subtree dictionary
+        function fillSubtree(root_) {
+            if (root_ == null || root_.value == undefined) {
+                var temp = [];
+                return temp;
+            }
+            var rightChildren = [];
+            var leftChildren = [];
+            var allChildren = [];
+            rightChildren = fillSubtree(root_.right);
+            leftChildren = fillSubtree(root_.left);
+            allChildren = rightChildren.concat(leftChildren);
+            if (root_.value != undefined) {
+                allChildren.push(root_.value);
+            }
+            subtree[root_.value] = allChildren;
+            return allChildren;
+        }
+        // Perform inorder traversal in reverse order
+        function reverseInorderTraversal(root_) {
+            if (root_ == null || root_.value == undefined) {
+                return;
+            }
+            actions.push({
+                type: "activateSubtree",
+                keys: subtree[root_.value]
+            });
+            reverseInorderTraversal(root_.right);
+            if (root_.value != undefined) {
+                actions.push({
+                    type: "visit",
+                    key: root_.value
+                });
+            }
+            actions.push({
+                type: "activateSubtree",
+                keys: subtree[root_.value]
+            });
+            reverseInorderTraversal(root_.left);
+            actions.push({
+                type: "activateSubtree",
+                keys: subtree[root_.value]
+            });
+        }
+
+        // Animate the traversal using the array of actions 
+        var visitedList = [];
+
+        function animateTraversal() {
+            var transition = d3.transition()
+                .duration(1500)
+                .on("start", function start() {
+                    var action = actions.pop();
+                    switch (action.type) {
+                        case "activateSubtree": {
+                            node.selectAll("circle")
+                                .transition().attr("class", function (d) {
+                                    var active = action.keys.includes(d.data.value);
+                                    var visited = visitedList.includes(d.data.value);
+                                    if (d.data.value == undefined) {
+                                        return "circleinvisible";
+                                    } else if (active && visited) {
+                                        return "active-visited-circle";
+                                    } else if (active && !visited) {
+                                        return "active-circle";
+                                    } else if (!active && visited) {
+                                        return "inactive-visited-circle";
+                                    } else {
+                                        return "inactive-circle";
+                                    }
+                                });
+                            break;
+                        }
+                        case "visit": {
+                            visitedList.push(action.key);
+                            node.selectAll("circle")
+                                .transition().attr("class", function (d) {
+                                    if (d.data.value == action.key) {
+                                        if (d3.select(this).attr("class") == "active-circle") {
+                                            return "active-visited-circle";
+                                        } else {
+                                            return "inactive-visited-circle";
+                                        }
+                                    } else {
+                                        return d3.select(this).attr("class");
+                                    }
+                                });
+                            break;
+                        }
+                    }
+                    if (actions.length) {
+                        transition = transition.transition().on("start", start);
+                    }
+                });
+            //      else {
+            //         node.selectAll("circle")
+            // .transition().attr("class", function (d) {
+            //     if (d.data.value == undefined)
+            //         return "circleinvisible";
+            //     else
+            //         return "inactive-visited-circle";
+            // });
+            //     }
+
+        }
+
+        // Render tree on click 
+        d3.select("#goButton").on("click", function () {
+            // Get binary tree string to deserailize
+            var target = document.getElementById("targetBox").value;
+            // Create a tree
+            deserialize(target);
+            // Render the tree
+            renderTree();
+            // Fill in subtree dict
+            fillSubtree(root);
+            // Traverse tree and fill in actions
+            reverseInorderTraversal(root);
+            // Animate the traversal
+            animateTraversal();
+        });
+    </script>
+</body>
